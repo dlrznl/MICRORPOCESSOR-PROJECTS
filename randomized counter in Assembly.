@@ -1,0 +1,304 @@
+/* define peripheral addresses from RM0444 page 57, Tables 3-4 */
+.equ RCC_BASE, (0x40021000) // RCC base address
+.equ RCC_IOPENR, (RCC_BASE + (0x34)) // RCC IOPENR register offset
+.equ GPIOA_BASE, (0x50000000) // GPIOa base address
+.equ GPIOA_MODER, (GPIOA_BASE + (0x00)) // GPIOa MODER register offset
+.equ GPIOA_ODR, (GPIOA_BASE + (0x14)) // GPIOa ODR register offset
+.equ GPIOB_BASE, (0x50000400) // GPIOb base address
+.equ GPIOB_MODER, (GPIOB_BASE + (0x00)) // GPIOb MODER register offset
+.equ GPIOB_ODR, (GPIOB_BASE + (0x14)) // GPIOb ODR register offset
+.equ GPIOB_IDR, (GPIOB_BASE + (0x10))
+.equ GPIOB_PUPDR, (GPIOB_BASE + (0x0C))
+main:
+/* enable GPIOa clock, bit2 on IOPENR */
+ldr r6, =RCC_IOPENR
+ldr r5, [r6]
+/* movs expects imm8, so this should be fine */
+movs r4, 0x3
+orrs r5, r5, r4
+str r5, [r6]
+LDR R0, =GPIOB_MODER
+LDR R1, [R0]
+LDR R2, =0x1
+ands r1,r1,r2
+STR R1,[R0]
+/* setup Pa6 pa4 pa5 pa7 pa8 pa1 pa0 pa9 for led 01 for bits 12-13 in MODER */
+ldr r6, =GPIOA_MODER
+ldr r5, [r6]
+/* cannot do with movs, so use pc relative */
+ldr r4, =0xfffff
+mvns r4, r4
+ands r5, r5, r4
+ldr r4, =0x55555
+orrs r5, r5, r4
+str r5, [r6]
+ldr r0, =0x9
+button:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+CMP R5,#0x1
+beq counter
+b stop
+stop:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+/* cannot do with movs, so use pc relative */
+ldr r4, =0x0
+ands r5, r4, r5
+ldr r3, =0xb0
+orrs r5, r5, r3
+str r5, [r6]
+b main
+counter:
+ldr r1, =0x9
+cmp r0,r1
+beq nine
+bl random1
+random1:
+subs r1,#1
+cmp r0,r1
+beq eight
+bl random2
+random2:
+subs r1,#1
+cmp r0,r1
+beq seven
+bl random3
+random3:
+subs r1,#1
+cmp r0,r1
+beq six
+bl random4
+random4:
+subs r1,#1
+cmp r0,r1
+beq five
+bl random5
+random5:
+subs r1,#1
+cmp r0,r1
+beq four
+bl random6
+random6:
+subs r1,#1
+cmp r0,r1
+beq three
+bl random7
+random7:
+subs r1,#1
+cmp r0,r1
+beq two
+bl random8
+random8:
+subs r1,#1
+cmp r0,r1
+beq one
+bl random9
+random9:
+subs r1,#1
+cmp r0,r1
+beq zero
+bl new
+b random1
+new:
+ldr r0, =0x9
+bx lr
+nine:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0x1b3
+orrs r5, r5, r4
+str r5, [r6]
+adds r0, #1
+bl delay
+bl button1
+eight:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0x3b3
+orrs r5, r5, r4
+adds r0, #1
+str r5, [r6]
+bl delay
+bl button2
+seven:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0xb0
+orrs r5, r5, r4
+str r5, [r6]
+subs r0, #1
+bl delay
+bl button3
+six:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0x393
+orrs r5, r5, r4
+str r5, [r6]
+adds r0, #1
+subs r0, #1
+bl delay
+bl button4
+five:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0xD3
+orrs r5, r5, r4
+str r5, [r6]
+subs r0, #1
+bl delay
+bl button5
+four:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0xa3
+orrs r5, r5, r4
+str r5, [r6]
+subs r0, #1
+bl delay
+bl button6
+three:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0x1b1
+orrs r5, r5, r4
+str r5, [r6]
+adds r0, #1
+bl delay
+bl button7
+two:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0x331
+orrs r5, r5, r4
+str r5, [r6]
+adds r0, #1
+bl delay
+bl button8
+one:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0xa0
+orrs r5, r5, r4
+str r5, [r6]
+subs r0, #1
+bl delay
+bl button9
+zero:
+ldr r6, =GPIOA_ODR
+ldr r5, [r6]
+ldr r7,=#3194888
+ldr r2, =0x000
+ands r5,r5,r2
+ldr r4, =0x3b2
+orrs r5, r5, r4
+str r5, [r6]
+subs r0, #1
+bl delay
+b counter
+delay:
+subs r7,#1
+bne delay
+bx lr
+button1:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq eight
+b main
+button2:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq seven
+b main
+button3:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq six
+b main
+button4:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq five
+b main
+button5:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq four
+b main
+button6:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq three
+b main
+button7:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq two
+b main
+button8:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq one
+b main
+button9:
+LDR R6, =GPIOB_IDR
+LDR R5, [R6]
+movs R4, #0x3
+ands r5,r5,r4
+CMP R5,#0x1
+beq zero
+b main
+get executed */
+nop
