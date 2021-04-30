@@ -1,0 +1,655 @@
+A. BSP.H
+void setRowsKeypad(void);
+void clearRowsKeypad(void);
+void setSSD(int);
+void idle(void);
+void clear_Digit(int);
+void TurnOn_Digit(int);
+int digits(int);
+void display(int x);
+void delay1(void);
+void dize(char *);
+void overflow(void);
+#endif /* BSP_H_ */
+B. BSP.C
+/*
+* bsp.c
+*
+* Created on: 20 Ara 2020
+* Author: FİLLO
+*/
+#include "bsp.h"
+#include <stdlib.h>
+#include <stdio.h>
+void delay(volatile uint32_t s){
+for(; s>0 ; s--);
+}
+void clearSSD(){
+//SET ALL OUTPUTS CONNECTED TO SSD (CLEAR SSD)
+GPIOA->ODR |= (1U << 0); //PA0 A
+GPIOA->ODR |= (1U << 1); //PA1 B
+GPIOA->ODR |= (1U << 4); //PA4 C
+GPIOA->ODR |= (1U << 5); //PA5 D
+GPIOA->ODR |= (1U << 12); //PA12 E
+GPIOA->ODR |= (1U << 11); //PA11 F
+GPIOA->ODR |= (1U << 6); //PA6 G
+}
+void clearRowsKeypad(void){
+GPIOA->ODR &= ~(1U << 8); //PA8
+GPIOB->ODR &= ~(1U << 9); //PB9
+GPIOB->ODR &= ~(1U << 5); //PB5
+GPIOB->ODR &= ~(1U << 4); //PB4
+}
+void setRowsKeypad(void){
+GPIOA->ODR |=(1U << 8); //PA8
+GPIOB->ODR |=(1U << 9); //PB9
+GPIOB->ODR |=(1U << 5); //PB5
+GPIOB->ODR |=(1U << 4); //PB4
+}
+void Setup_Pins(void){
+//GPIOA
+RCC->IOPENR |= (1U << 0);
+//GPIOB
+RCC->IOPENR |= (1U << 1);
+//SETUP SSD PA0, PA1, PA4, PA5, PA12, PA11, PA6, PB3 GPIOA->MODER &= ~(3U << 2*0); GPIOA->MODER |= (1U << 2*0); //PA0 -A
+GPIOA->MODER &= ~(3U << 2*1); GPIOA->MODER |= (1U << 2*1); //PA1-B
+GPIOA->MODER &= ~(3U << 2*4); GPIOA->MODER |= (1U << 2*4); //PA4-C
+GPIOA->MODER &= ~(3U << 2*5); GPIOA->MODER |= (1U << 2*5); //PA5-D
+GPIOA->MODER &= ~(3U << 2*12); GPIOA->MODER |= (1U << 2*12); //PA12-E
+GPIOA->MODER &= ~(3U << 2*11); GPIOA->MODER |= (1U << 2*11); //PA11-F
+GPIOA->MODER &= ~(3U << 2*6); GPIOA->MODER |= (1U << 2*6); //PA6-G
+GPIOB->MODER &= ~(3U << 2*3); GPIOB->MODER |= (1U << 2*3); //PB3-DP
+GPIOA->MODER &= ~(3U << 2*7); GPIOA->MODER |= (1U << 2*7); //d1
+GPIOB->MODER &= ~(3U << 2*7); GPIOB->MODER |= (1U << 2*7); //d2
+GPIOB->MODER &= ~(3U << 2*1); GPIOB->MODER |= (1U << 2*1); //d3
+GPIOB->MODER &= ~(3U << 2*6); GPIOB->MODER |= (1U << 2*6); //d4
+//////////////////////////////////////////
+//SETUP PA8,PB9,PB5,PB4 as output (rows) GPIOA->MODER &= ~(3U << 2*8); GPIOA->MODER |= (1U << 2*8); //PA8-R4
+GPIOB->MODER &= ~(3U << 2*9); GPIOB->MODER |= (1U << 2*9); //PB9-R3
+GPIOB->MODER &= ~(3U << 2*5); GPIOB->MODER |= (1U << 2*5); //PB5-R2
+GPIOB->MODER &= ~(3U << 2*4); GPIOB->MODER |= (1U << 2*4); //PB4-R1
+//SETUP PA9, PB0, PB2, PB8 AS INPUT(COLUMNS)
+GPIOA->MODER &= ~(3U << 2*15);
+GPIOA->PUPDR |= (2U << 2*15);//PA15-C4
+GPIOB->MODER &= ~(3U << 2*0);
+GPIOB->PUPDR |= (2U << 2*0); //PB0-C3
+GPIOB->MODER &= ~(3U << 2*2);
+GPIOB->PUPDR |= (2U << 2*2); //PB2-C2
+GPIOB->MODER &= ~(3U << 2*8);
+GPIOB->PUPDR |= (2U << 2*8); //PB8-C1
+///////////////////////////////////////////
+//SETUP INTERRUPTS FOR INPUTS
+EXTI->EXTICR[3] |= (0U << 8*3); //PA15
+EXTI->EXTICR[0] |= (1U << 8*0); //PB0
+EXTI->EXTICR[0] |= (1U << 8*2); //PB2
+EXTI->EXTICR[2] |= (1U << 8*0); //PB8
+//RISING EDGE
+EXTI->RTSR1 |= (1U << 15);//15
+EXTI->RTSR1 |= (1U << 0);//0
+EXTI->RTSR1 |= (1U << 2);//2
+EXTI->RTSR1 |= (1U << 8);//8
+//MASK
+EXTI->IMR1 |= (1U <<15);
+EXTI->IMR1 |= (1U << 0);
+EXTI->IMR1 |= (1U << 2);
+EXTI->IMR1 |= (1U << 8);
+//NVIC
+NVIC_SetPriority(EXTI0_1_IRQn , 0);
+NVIC_EnableIRQ(EXTI0_1_IRQn);
+NVIC_SetPriority(EXTI2_3_IRQn , 0);
+NVIC_EnableIRQ(EXTI2_3_IRQn);
+NVIC_SetPriority(EXTI4_15_IRQn , 0);
+NVIC_EnableIRQ(EXTI4_15_IRQn);
+GPIOB->ODR |= (1U << 4); //PA10
+GPIOB->ODR |= (1U << 5); //PA9
+GPIOB->ODR |= (1U << 9); //PB0
+GPIOA->ODR |= (1U << 8); //PB2
+clearSSD();
+}
+void setSSD(int x){
+clearSSD();
+switch (x)
+{
+case 0:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+break;
+case 1:
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+break;
+case 2:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+break;
+case 3:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+break;
+case 4:
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+break;
+case 5:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+break;
+case 6:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+break;
+case 7:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+break;
+case 8:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+break;
+case 9:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+break;
+case 10: //#
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+break;
+}
+void idle(void){
+setSSD(1);
+GPIOA->ODR |= (1U << 7);
+GPIOA->ODR &= ~(1U << 7);
+setSSD(7);
+GPIOB->ODR |= (1U << 7);
+GPIOB->ODR &= ~(1U << 7);
+setSSD(7);
+GPIOB->ODR |= (1U << 1);
+GPIOB->ODR &= ~(1U << 1);
+setSSD(7);
+GPIOB->ODR |= (1U << 6);
+GPIOB->ODR &= ~(1U << 6);
+}
+void clear_Digit(int x){
+switch(x){
+case 1:
+GPIOA->ODR &= ~(1U << 7);
+break;
+case 2:
+GPIOB->ODR &= ~(1U << 7);
+break;
+case 3:
+GPIOB->ODR &= ~(1U << 1);
+break;
+case 4:
+GPIOB->ODR &= ~(1U << 6);
+break;
+}
+}
+void TurnOn_Digit(int x){
+switch(x){
+case 1:
+GPIOA->ODR |= (1U << 7);
+break;
+case 2:
+GPIOB->ODR |= (1U << 7);
+break;
+case 3:
+GPIOB->ODR |= (1U << 1);
+break;
+case 4:
+GPIOB->ODR |= (1U << 6);
+break;
+}
+}
+int ndigit(int num){
+int count = 0;
+if (num == 0)
+return 1;
+while (num != 0) {
+++count;
+int digits(int num){
+int count = 0;
+if (num == 0)
+return 1;
+while (num != 0) {
+++count;
+num /= 10;
+}
+return count;
+}
+void display(int x){
+clearSSD();
+if (ndigit(x) == 1 && x >=0){
+setSSD(x % 10);
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+else if (ndigit(x) == 2 && x >=0){
+setSSD(x / 10);
+TurnOn_Digit(3);
+clear_Digit(3);
+setSSD(x % 10);
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+else if (ndigit(x) == 3 && x >=0){
+setSSD(x / 100);
+TurnOn_Digit(2);
+clear_Digit(2);
+setSSD((x / 10) % 10);
+TurnOn_Digit(3);
+clear_Digit(3);
+setSSD(x % 10);
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+else if (ndigit(x) == 4 && x >=0){
+setSSD(x / 1000);
+TurnOn_Digit(1);
+clear_Digit(1);
+setSSD((x / 100) % 10);
+TurnOn_Digit(2);
+clear_Digit(2);
+setSSD((x / 10) % 10);
+TurnOn_Digit(3);
+clear_Digit(3);
+setSSD(x % 10);
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+else if (x < 0){
+GPIOA->ODR &= ~(1U << 6);
+if (ndigit(x) == 1){
+TurnOn_Digit(3);
+clear_Digit(3);
+setSSD(abs(x) % 10);
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+else if (ndigit(x) == 2){
+TurnOn_Digit(2);
+clear_Digit(2);
+setSSD((abs(x) / 10) % 10);
+TurnOn_Digit(3);
+clear_Digit(3);
+setSSD(abs(x) % 10);
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+else if (ndigit(x) == 3){
+TurnOn_Digit(1);
+clear_Digit(1);
+setSSD((abs(x) / 100) % 10);
+TurnOn_Digit(2);
+clear_Digit(2);
+setSSD((abs(x) / 10) % 10);
+TurnOn_Digit(3);
+clear_Digit(3);
+setSSD(abs(x) % 10);
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+}
+}
+void dize (char *s){ //
+s[0] = '\0';
+s[1] = '\0';
+s[2] = '\0';
+s[3] = '\0';
+} void overflow(void){ // islem fazlaliginda olusacak ekran
+clearSSD();
+setSSD(0); TurnOn_Digit(1);
+clear_Digit(1);
+clearSSD();
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 2); //PA2 C
+GPIOA->ODR &= ~(1U << 3); //PA3 D
+GPIOA->ODR &= ~(1U << 4); //PA4 E
+GPIOA->ODR &= ~(1U << 5); //PA5 F
+TurnOn_Digit(2);
+clear_Digit(2);
+clearSSD();
+GPIOA->ODR &= ~(1U << 4); //PA4 E
+GPIOA->ODR &= ~(1U << 5); //PA5 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+TurnOn_Digit(3);
+clear_Digit(3);
+clearSSD();
+GPIOA->ODR &= ~(1U << 3); //PA3 D
+GPIOA->ODR &= ~(1U << 4); //PA4 E
+GPIOA->ODR &= ~(1U << 5); //PA5 F
+TurnOn_Digit(4);
+clear_Digit(4);
+}
+void delay1(void){
+for(int i = 0; i < 100000; ++i);
+}
+C. MAIN.C
+#include "stm32g0xx.h"
+#include "bsp.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+int bekleme; // bekleme suresi
+int sira;
+char s[] = "1777"; //idle okul no
+char first[] = " ";
+int sonuc; // sonuc
+int plus; //toplama
+int minus; //cikarma
+int mult; //carpma
+int bolme; //bolme
+void EXTI0_1_IRQHandler(void){ //interrupt from PB0 - C3
+if (!strcmp(s,"1777")) //ekrandaki sayi 1777 degilse
+dize(s); //ekrani sifirla
+clearRowsKeypad();
+GPIOA->ODR |= (1U << 8); //PA8 - R4
+if ((GPIOB->IDR >> 0) & 1){
+bekleme = 0;
+//#
+if (plus==1){ //toplama islemi aktif ise
+sonuc = atoi(first) + atoi(s); // eski sayiyi ve yeni sayiyi topla
+itoa(sonuc, s, 10); //decimal olarak sonuci s ye aktar
+plus = 0; //plusi sifirla
+}
+if (minus==1){
+sonuc = atoi(first) - atoi(s);
+itoa(sonuc, s, 10);
+minus = 0;
+}
+if (mult==1){
+sonuc = (atoi(first) * atoi(s));
+itoa(sonuc, s, 10);
+mult = 0;
+}
+if (bolme==1){
+sonuc = atoi(first) / atoi(s);
+itoa(sonuc, s, 10);
+bolme = 0;
+}
+GPIOA->ODR ^= (1U << 8); //PA8
+////////////////////////////////////
+GPIOB->ODR ^=(1U << 9); //PB9 - R3
+if (((GPIOB->IDR >> 0) & 1) && sira != 4){ // sayi konumu 4 de
+bekleme = 0; //bekleme suresini sifirla
+s[sira++] = '9'; // index' arttir ve s dizisine esitle
+delay1();
+delay1();
+display(atoi(s)); //set SSD to 9
+}
+GPIOB->ODR ^= (1U << 9); //PB9
+////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5 - R2
+if (((GPIOB->IDR >> 0) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '6';
+delay1();
+delay1();
+display(atoi(s)); //set SSD to 6
+}
+GPIOB->ODR ^= (1U << 5); //PB5
+/////////////////////////////////////
+GPIOB->ODR ^= (1U << 4); //PB4 - R1
+if (((GPIOB->IDR >> 0) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '3';
+delay1();
+delay1();
+display(atoi(s)); //set SSD to 3
+}
+GPIOB->ODR &= ~(1U << 4); //PB4
+/////////////////////////////////////
+EXTI->RPR1 |= (1U << 0); //CLEAR INTERRUPT FLAG
+setRowsKeypad();
+}}
+void EXTI2_3_IRQHandler(void){// interrupt from PB2 - C2
+if (!strcmp(s,"1777"))
+dize(s);
+clearRowsKeypad();
+GPIOA->ODR ^= (1U << 8); //PA8 - R4
+if (((GPIOB->IDR >> 2) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '0';
+delay1();
+delay1();
+display(atoi(s)); //set SSD to 0
+}
+GPIOA->ODR ^=(1U << 8); //PA8
+////////////////////////////////////
+GPIOB->ODR ^=(1U << 9); //PB9
+if (((GPIOB->IDR >> 2) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '8';
+delay1();
+delay1();
+display(atoi(s)); //set SSD to 8
+}
+GPIOB->ODR ^= (1U << 9); //PB9
+////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5
+if (((GPIOB->IDR >> 2) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '5';
+delay1();
+delay1();
+display(atoi(s)); //set SSD to 5
+}
+GPIOB->ODR ^= (1U << 5); //PB5
+/////////////////////////////////////
+GPIOB->ODR ^= (1U << 4); //PB4
+if (((GPIOB->IDR >> 2) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '2';
+delay1();
+delay1();
+display(atoi(s)); //set SSD to 2
+}
+GPIOB->ODR ^= (1U << 4); //PB4
+/////////////////////////////////////
+EXTI->RPR1 |= (1U << 2); //CLEAR INTERRUPT FLAG
+setRowsKeypad();
+}
+void EXTI4_15_IRQHandler(void){
+if (!strcmp(s,"1777"))
+dize(s);
+clearRowsKeypad();
+if((EXTI->RPR1 & (1 << 8))) { //pb8
+clearRowsKeypad();
+GPIOA->ODR ^= (1U << 8); //PA8
+if ((GPIOB->IDR >> 8) & 1){
+//yildiz
+clearRowsKeypad();
+clearSSD();
+while(1)
+{
+if((EXTI->RPR1 & (1 << 15))) {
+clearRowsKeypad();
+GPIOB->ODR ^= (1U << 4); //PB4- A
+if ((GPIOA->IDR >> 15)& 1){
+double x=(double)log10(atoi(s)); //log
+bekleme = 0;
+sira = 0;
+display(x);
+}
+GPIOB->ODR ^= (1U << 4); //PB4- A
+///////////////////////////////////////////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5
+if ((GPIOA->IDR >> 15)& 1){
+double x=(double)log(atoi(s)); //ln - B
+bekleme = 0;
+sira = 0;
+display(x);
+}
+GPIOB->ODR ^= (1U << 5);
+///////////////////////////////////////////////////////////////////////////////
+GPIOB->ODR ^= (1U << 9); //PB9
+if ((GPIOA->IDR >> 15)& 1){
+int x= sqrt(atoi(s)); //sqrt - C
+bekleme = 0;
+sira = 0;
+display(x);
+}
+GPIOB->ODR ^= (1U << 9);
+//////////////////////////////////////////////////////////////////////////////////
+GPIOA->ODR ^= (1U << 8); //PA8
+if ((GPIOA->IDR >> 15)& 1){ double x= pow((double)atoi(s),(double)2); //^2 - D
+bekleme = 0;
+sira = 0;
+display(x);
+}
+GPIOA->ODR ^= (1U << 8);
+EXTI->RPR1 |= (1U << 15); //CLEAR INTERRUPT FLAG
+setRowsKeypad();
+}
+}
+}
+GPIOA->ODR ^=(1U << 8); //PA8
+////////////////////////////////////
+GPIOB->ODR ^=(1U << 9); //PB9
+if (((GPIOB->IDR >> 8) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '7'; delay1(); delay1();
+display(atoi(s)); //set SSD to 7
+}
+GPIOB->ODR ^= (1U << 9); //PB9
+////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5
+if (((GPIOB->IDR >> 8) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '4'; delay1(); delay1();
+display(atoi(s)); //set SSD to 4
+}
+GPIOB->ODR ^= (1U << 5); //PB5
+/////////////////////////////////////
+GPIOB->ODR ^= (1U << 4); //PB4
+if (((GPIOB->IDR >> 8) & 1) && sira != 4){
+bekleme = 0;
+s[sira++] = '1'; delay1(); delay1();
+display(atoi(s)); //set SSD to 1
+}
+GPIOB->ODR ^= (1U << 4); //PB4
+/////////////////////////////////////
+EXTI->RPR1 |= (1U << 8); //CLEAR INTERRUPT FLAG
+setRowsKeypad();
+}
+////////////////////////////////////////////////////////////////
+else if((EXTI->RPR1 & (1 << 15))) { //PA15
+clearRowsKeypad();
+GPIOA->ODR ^= (1U << 8); //PA8
+if ((GPIOA->IDR >> 15) & 1){//pa15
+bekleme = 0;
+bolme = 1; // D bolme islemi
+sira = 0;
+strcpy(first, s);
+dize(s); delay1(); delay1();
+}
+GPIOA->ODR ^=(1U << 8); //PA8
+////////////////////////////////////
+GPIOB->ODR ^=(1U << 9); //PB9
+if ((GPIOA->IDR >> 15) & 1){
+//C
+bekleme = 0;
+mult = 1; // C carpma islemi
+sira = 0;
+strcpy(first, s);
+dize(s); delay1(); delay1();
+}
+GPIOB->ODR ^= (1U << 9); //PB9
+////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5
+if ((GPIOA->IDR >> 15) & 1){
+//B
+bekleme = 0;
+minus = 1; //B cikarma islemi
+sira = 0;
+strcpy(first, s);
+dize(s); delay1(); delay1();
+}
+GPIOB->ODR ^= (1U << 5); //PB5
+/////////////////////////////////////
+GPIOB->ODR ^= (1U << 4); //PB4
+if ((GPIOA->IDR >> 15)& 1){
+bekleme = 0;
+plus = 1; //A toplama islemi
+sira = 0;
+strcpy(first,s); //first fonksiyonuna s yi kopyala
+dize(s); // s yi atadigi icin yeni sayi adina s yi sifirla delay1(); delay1()
+}
+GPIOB->ODR ^= (1U << 4); //PB4
+/////////////////////////////////////
+EXTI->RPR1 |=(1U << 15);
+setRowsKeypad();
+}
+}
+void reset_values(void){
+bekleme = 0; //bekleme suresini sifirlar
+sonuc =0 ; //sonucu sifirla
+sira = 0; //sirai sifirla
+strcpy(s,"1777"); // s char dizesini 1777 ye esitle
+}
+void initTIM3(void) {
+/* Setup TIM3 */
+RCC->APBENR1 |= (1U << 1);
+TIM3->CR1 = 0;
+TIM3->CR1 |= (1U << 7); //Auto-reload preload enable
+TIM3->CNT = 0; //Counter Register
+TIM3->PSC = 99; //Prescaler Register
+TIM3->ARR = (16); //auto-reload register
+TIM3->DIER |= (1U << 0); //Update interrupt enable
+TIM3->CR1 |= (1U << 0); //counter enable
+NVIC_SetPriority(TIM3_IRQn, 1);
+NVIC_EnableIRQ(TIM3_IRQn);
+}
+
+
+void TIM3_IRQHandler(void) {
+++bekleme; //bekleme suresini arttir
+display(atoi(s));
+if (sonuc > 9999 || sonuc < -999){ //sayi sinirlari asarsa
+for (int i = 0; i < 10000; ++i)
+overflow(); //asiri durumda gosterilecek durumu displayde goster
+reset_values(); //sifirla ve okul numarasini goster
+}
+if (bekleme == 80000) //bekleme suresi eger asarsa
+reset_values(); //resetle ve okul no goster
+TIM3->SR &= ~(1U << 0);
+}
+int main(void) {
+SysTick_Config(SystemCoreClock / 1000);
+Setup_Pins();
+initTIM3(); //timer okul no goster
+while(1)
+{
+}
+return 0;
+}
