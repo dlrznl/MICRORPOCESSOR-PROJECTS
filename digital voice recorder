@@ -1,0 +1,639 @@
+A. BSP.H
+#include "stm32g0xx.h"
+#ifndef BSP_H_
+#define BSP_H_
+void setRowsKeypad(void);
+void clearRowsKeypad(void);
+void setSSD(int);
+void idle(void);
+void clearDs(int);
+void clear7SD();
+void digitson(int);
+int digits(int);
+void display(int x);
+void delay1(void);
+void delay(uint32_t);
+void pins(void);
+void initTIM3(void);
+void initTIM2(void);
+void adc(void);
+void pwm(void);
+void I2C(void);
+void read_I2C(uint8_t, uint8_t*, int);
+void write_memory_I2C(uint8_t, uint16_t ,uint8_t*, int);
+void random_read_I2C(uint8_t ,uint16_t,uint8_t*, int);
+uint16_t conversion(void);
+#endif
+B. BSP.C
+#include "bsp.h"
+#include <stdlib.h>
+#include <stdio.h>
+void delay(uint32_t s) {
+for (int i = 0; i < s; ++i);
+}
+void clear7SD(){
+//SET ALL OUTPUTS CONNECTED TO SSD (CLEAR SSD)
+GPIOA->ODR |= (1U << 0); //PA0 A
+GPIOA->ODR |= (1U << 1); //PA1 B
+GPIOA->ODR |= (1U << 4); //PA4 C
+GPIOA->ODR |= (1U << 5); //PA5 D
+GPIOA->ODR |= (1U << 12); //PA12 E
+GPIOA->ODR |= (1U << 11); //PA11 F
+GPIOA->ODR |= (1U << 6); //PA6 G
+}
+void clearRowsKeypad(void){
+GPIOA->ODR &= ~(1U << 13); //PA13
+GPIOB->ODR &= ~(1U << 9); //PB9
+GPIOB->ODR &= ~(1U << 5); //PB5
+GPIOB->ODR &= ~(1U << 4); //PB4
+}
+void setRowsKeypad(void){
+GPIOA->ODR |=(1U << 13); //PA13
+GPIOB->ODR |=(1U << 9); //PB9
+GPIOB->ODR |=(1U << 5); //PB5
+GPIOB->ODR |=(1U << 4); //PB4
+}
+void pins(void){
+//GPIOA
+RCC->IOPENR |= (1U << 0);
+//GPIOB
+RCC->IOPENR |= (1U << 1);
+//SETUP SSD PA0, PA1, PA4, PA5, PA12, PA11, PA6, PB3
+GPIOA->MODER &= ~(3U << 2*0);
+GPIOA->MODER |= (1U << 2*0); //PA0 -A
+GPIOA->MODER &= ~(3U << 2*1);
+GPIOA->MODER |= (1U << 2*1); //PA1-B
+GPIOA->MODER &= ~(3U << 2*4);
+GPIOA->MODER |= (1U << 2*4); //PA4-C
+GPIOA->MODER &= ~(3U << 2*5);
+GPIOA->MODER |= (1U << 2*5); //PA5-D
+GPIOA->MODER &= ~(3U << 2*12);
+GPIOA->MODER |= (1U << 2*12); //PA12-E
+GPIOA->MODER &= ~(3U << 2*11);
+GPIOA->MODER |= (1U << 2*11); //PA11-F
+GPIOA->MODER &= ~(3U << 2*6);
+GPIOA->MODER |= (1U << 2*6); //PA6-G
+GPIOB->MODER &= ~(3U << 2*3);
+GPIOB->MODER |= (1U << 2*3); //PB3-DP
+GPIOA->MODER &= ~(3U << 2*9);
+GPIOA->MODER |= (1U << 2*9); //d1
+GPIOA->MODER &= ~(3U << 2*10);
+GPIOA->MODER |= (1U << 2*10); //d2
+GPIOB->MODER &= ~(3U << 2*1);
+GPIOB->MODER |= (1U << 2*1); //d3
+GPIOA->MODER &= ~(3U << 2*15);
+GPIOA->MODER |= (1U << 2*15); //d4
+//////////////////////////////////////////
+//SETUP PA 13,PB9,PB5,PB4 as output (rows)
+GPIOA->MODER &= ~(3U << 2*13);
+GPIOA->MODER |= (1U << 2*13); //P13-R4
+GPIOB->MODER &= ~(3U << 2*9);
+GPIOB->MODER |= (1U << 2*9); //PB9-R3
+GPIOB->MODER &= ~(3U << 2*5);
+GPIOB->MODER |= (1U << 2*5); //PB5-R2
+GPIOB->MODER &= ~(3U << 2*4);
+GPIOB->MODER |= (1U << 2*4); //PB4-R1
+//SETUP PA9, PB0, PB2, PB8 AS INPUT(COLUMNS)
+GPIOA->MODER &= ~(3U << 2*15);
+GPIOA->PUPDR |= (2U << 2*15);//PA15-C4
+GPIOB->MODER &= ~(3U << 2*0);
+GPIOB->PUPDR |= (2U << 2*0); //PB0-C3
+GPIOB->MODER &= ~(3U << 2*2);
+GPIOB->PUPDR |= (2U << 2*2); //PB2-C2
+GPIOB->MODER &= ~(3U << 2*8);
+GPIOB->PUPDR |= (2U << 2*8); //PB8-C1
+///////////////////////////////////////////
+//SETUP INTERRUPTS FOR INPUTS
+EXTI->EXTICR[3] |= (0U << 8*3); //PA15
+EXTI->EXTICR[0] |= (1U << 8*0); //PB0
+EXTI->EXTICR[0] |= (1U << 8*2); //PB2
+EXTI->EXTICR[2] |= (1U << 8*0); //PB8
+//RISING EDGE
+EXTI->RTSR1 |= (1U << 15);//15
+EXTI->RTSR1 |= (1U << 0);//0
+EXTI->RTSR1 |= (1U << 2);//2
+EXTI->RTSR1 |= (1U << 8);//8
+//MASK
+EXTI->IMR1 |= (1U <<15);
+EXTI->IMR1 |= (1U << 0);
+EXTI->IMR1 |= (1U << 2);
+EXTI->IMR1 |= (1U << 8);
+//NVIC
+NVIC_SetPriority(EXTI0_1_IRQn , 0);
+NVIC_EnableIRQ(EXTI0_1_IRQn);
+NVIC_SetPriority(EXTI2_3_IRQn , 0);
+NVIC_EnableIRQ(EXTI2_3_IRQn);
+NVIC_SetPriority(EXTI4_15_IRQn , 0);
+NVIC_EnableIRQ(EXTI4_15_IRQn);
+GPIOB->ODR |= (1U << 4);
+GPIOB->ODR |= (1U << 5);
+GPIOB->ODR |= (1U << 9);
+GPIOA->ODR |= (1U << 8);
+clear7SD();
+}
+void setSSD(int x){
+clear7SD();
+switch (x)
+{
+case 0:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+break;
+case 1:
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+break;
+case 2:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+break;
+case 3:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+break;
+case 4:
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+break;
+case 5:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+break;
+case 6:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+break;
+case 7:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+break;
+case 8:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 12); //PA12 E
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+break;
+case 9:
+GPIOA->ODR &= ~(1U << 0); //PA0 A
+GPIOA->ODR &= ~(1U << 1); //PA1 B
+GPIOA->ODR &= ~(1U << 4); //PA4 C
+GPIOA->ODR &= ~(1U << 5); //PA5 D
+GPIOA->ODR &= ~(1U << 11); //PA11 F
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+break;
+case 10: //#
+GPIOA->ODR &= ~(1U << 6); //PA6 G
+break;
+}
+}
+void idle(void){
+setSSD(1);
+GPIOA->ODR |= (1U << 7);
+GPIOA->ODR &= ~(1U << 7);
+setSSD(7);
+GPIOB->ODR |= (1U << 7);
+GPIOB->ODR &= ~(1U << 7);
+setSSD(7);
+GPIOB->ODR |= (1U << 1);
+GPIOB->ODR &= ~(1U << 1);
+setSSD(7);
+GPIOB->ODR |= (1U << 6);
+GPIOB->ODR &= ~(1U << 6);
+}
+void clearDs(int x){
+switch(x){
+case 1:
+GPIOA->ODR &= ~(1U << 7);
+break;
+case 2:
+GPIOB->ODR &= ~(1U << 7);
+break;
+case 3:
+GPIOB->ODR &= ~(1U << 1);
+break;
+case 4:
+GPIOB->ODR &= ~(1U << 6);
+break;
+}
+}
+void digitson(int x){
+switch(x){
+case 1:
+GPIOA->ODR |= (1U << 7);
+break;
+case 2:
+GPIOB->ODR |= (1U << 7);
+break;
+case 3:
+GPIOB->ODR |= (1U << 1);
+break;
+case 4:
+GPIOB->ODR |= (1U << 6);
+break;
+}}
+int digits(int num){
+int count = 0;
+if (num == 0)
+return 1;
+while (num != 0) {
+++count;
+num /= 10;
+}
+return count;
+}
+void display(int x){
+clear7SD();
+if (digits(x) == 1 && x >=0){
+setSSD(x % 10);
+digitson(4);
+clearDs(4);
+}
+else if (digits(x) == 2 && x >=0){
+setSSD(x / 10);
+digitson(3);
+clearDs(3);
+setSSD(x % 10);
+digitson(4);
+clearDs(4);
+}
+else if (digits(x) == 3 && x >=0){
+setSSD(x / 100);
+digitson(2);
+clearDs(2);
+setSSD((x / 10) % 10);
+digitson(3);
+clearDs(3);
+setSSD(x % 10);
+digitson(4);
+clearDs(4);
+}
+else if (digits(x) == 4 && x >=0){
+setSSD(x / 1000);
+digitson(1);
+clearDs(1);
+setSSD((x / 100) % 10);
+digitson(2);
+clearDs(2);
+setSSD((x / 10) % 10);
+digitson(3);
+clearDs(3);
+setSSD(x % 10);
+digitson(4);
+clearDs(4);
+}
+else if (x < 0){
+GPIOA->ODR &= ~(1U << 6);
+if (digits(x) == 1){
+digitson(3);
+clearDs(3);
+setSSD(abs(x) % 10);
+digitson(4);
+clearDs(4);
+}
+else if (digits(x) == 2){
+digitson(2);
+clearDs(2);
+setSSD((abs(x) / 10) % 10);
+digitson(3);
+clearDs(3);
+setSSD(abs(x) % 10);
+digitson(4);
+clearDs(4);
+}
+else if (digits(x) == 3){
+digitson(1);
+clearDs(1);
+setSSD((abs(x) / 100) % 10);
+digitson(2);
+clearDs(2);
+setSSD((abs(x) / 10) % 10);
+digitson(3);
+clearDs(3);
+setSSD(abs(x) % 10);
+digitson(4);
+clearDs(4);
+}
+}
+}
+void initTIM3(void) {
+// Setup TIM3
+RCC->APBENR1 |= (1U << 1);
+TIM3->DIER |= (1U << 0); //update interrupt enable
+TIM3->CCER |= (1U << 0); /* channel 1 enable*/
+TIM3->CR1 = 0;
+TIM3->CR1 |= (1U << 7); // ARPE
+// CH1 SETTING FOR PWM pb4, TIM3-CH1, PINS 16-6-5-4, OC1M 0110: PWM mode 1
+TIM3->CCMR1 &= ~(1U << 16);
+TIM3->CCMR1 |= (1U << 6);
+TIM3->CCMR1 |= (1U << 5);
+TIM3->CCMR1 &= ~(1U << 4);
+TIM3->CCMR1 |= (1U << 3); // ENABLE OUTPUT COMPARE 1 PRELOAD OC1PE
+//PWM FREKANS = 1600000HZ / ((PSC+1)*ARR)
+//PWM DUTY =CCR1 / ARR % 50 OLMALI
+//insan 20-20k hz arasi ses duymaktadir
+TIM3->CCR1 = 5;
+TIM3->PSC = 14;
+TIM3->ARR = 10;
+TIM3->EGR |= (1<<0); //update genetarion
+TIM3->CR1 |= (1U << 0); //TIMER prepared
+NVIC_SetPriority(TIM3_IRQn, 0);
+NVIC_EnableIRQ(TIM3_IRQn);
+}
+void initTIM2(void) {
+RCC->APBENR1 |= (1U << 0);
+TIM2->CR1 = 0;
+TIM2->CR1 |= (1U << 7);
+TIM2->CNT = 0;
+TIM2->CR2 |= (2U << 4); //MMS REGISTER UPDATE MODE
+//16Mhz/((PSC+1)*ARR)
+TIM2->PSC = 249;
+TIM2->ARR = 10;
+TIM2->DIER |= (1U << 0);
+TIM2->CR1 |= (1U << 0); // ENABLE TIM2
+}
+void adc(void) {
+RCC->IOPENR |= (1U << 0); //open A pin
+GPIOA->MODER &= ~(3U << 2 * 7);
+GPIOA->MODER |= (3U << 2 * 7); // PA7 enable analog mode
+RCC->APBENR2 |= (1U << 20); // enable ADC
+ADC1->CR |= (1U << 28); // enable ADC VOLTAGE REGULATOR
+delay(50); // waiting ADC
+ADC1->CR |= (1U << 31); // enable ADC calibration
+while (ADC1->ISR & (1 << 11)); //when calibration is complete out
+ADC1->IER |= (1U << 2); //for conversionersion interrupt
+//continious and single mode
+ADC1->CFGR1 |=(1U << 16);
+ADC1->CFGR1 &=(1U << 13);
+//ANALOG WATCHDOG CHANNEL
+ADC1->CFGR1 |=(1U << 23);
+ADC1->CFGR1 |=(1U << 27); //CHANNEL 1
+//8 BIT RESOLUTION
+ADC1->CFGR1 |=(1U << 3);
+//ADC TIM2 010 EXTSEL 8:6
+ADC1->CFGR1 &= ~(1U << 6);
+ADC1->CFGR1 |= (1U << 7);
+ADC1->CFGR1 &= ~(1U << 8);
+//EXTEN RISING EDGE
+ADC1->CFGR1 |= (1U << 10);
+//SIMPLE
+//TCON=SAMPLINGTIME()+12.5 x ADC CLOCK CYCLES
+ADC1->SMPR |=(1U << 8); //CHANNEL 0
+ADC1->SMPR |=(0x7 << 4); //160.5 ADC CLOCK CYCLE
+//160.0+12.5=173 CYCLE
+//ENABLE CHANNELS
+while (ADC1->ISR & (1 << 0)); // WILL NOT COME OUT UNTIL ADC READY
+ADC1->CHSELR |= (1U << 7); // ADC CHANNEL SELECTION REGISTER (PA7) */
+ADC1->CFGR1 |= (1U << 13);
+ADC1->CR |= (1U << 0); // CHANNELX SELECTION ENABLE
+NVIC_SetPriority(ADC1_IRQn, 2);
+NVIC_EnableIRQ(ADC1_IRQn);
+}
+uint16_t conversion(void){
+ADC1->CR |=(1U << 2);
+while(!(ADC1->ISR & (1U << 2))); // UNTIL END OF conversion
+}
+void pwm(void) {
+RCC->IOPENR |= (1U << 1); // B rcc open
+GPIOB->MODER &= ~(3U << 2 *4);
+GPIOB->MODER |= (2U << 2 *4); // PB4 alterna mode
+GPIOB->AFR[0] &= ~(0xFU << 4 *4); // reset AFSEL4
+GPIOB->AFR[0] |= (1U << 4 *4); //AF1
+}
+void I2C(void){
+RCC->IOPENR|=(1U << 1); //GPIOB
+//SETUP PB6 AND PB7
+GPIOB->MODER &=~(3U << 2*6);
+GPIOB->MODER |=(1U << 2*6);
+GPIOB->OTYPER |=(1U << 6); //open drain
+GPIOB->PUPDR |=(1U << 2*6);
+GPIOB->AFR[0] &= ~(0xFU << 4*6);
+GPIOB->AFR[0] |= (6 << 4*6);
+////////////////////////////////
+GPIOB->MODER &=~(3U << 2*7);
+GPIOB->MODER |=(1U << 2*7);
+GPIOB->OTYPER |=(1U << 7);
+GPIOB->PUPDR |=(1U << 2*7);
+GPIOB->AFR[0] &= ~(0xFU << 4*7);
+GPIOB->AFR[0] |= (6 << 4*7);
+//////////////////////////////////////////////////
+///ENABLE I2C
+RCC->APBENR1 |=(1U << 21);
+I2C1->CR1|=0;
+I2C1->CR1=(1U << 7); //ERROR INTERRUPT
+I2C1->CR2|= (1U << 15); //NACK
+I2C1->CR2|= (1U << 25); //AUTOEND
+I2C1->TIMINGR |= (3 << 28); //PRESCALER
+I2C1->TIMINGR |= (0x13 << 0); //SCLL
+I2C1->TIMINGR |= (0xF << 8); //SCLH
+I2C1->TIMINGR |= (0x2 << 16); //SDADEL
+I2C1->TIMINGR |= (0x4 << 20); //SCLDEL
+I2C1->CR1=(1U << 0);
+NVIC_SetPriority(I2C1_IRQn, 1);
+NVIC_EnableIRQ(I2C1_IRQn);
+}
+//EEPROM
+//VSS GROUND
+//VCC 3.3 V
+//WP GROUND
+//SCL PB6
+//SDA PB7
+//2 EPROMU BAGLAMAK ICIN SCL PINLERINI BAGLA
+//SDA ICINDE GECERLI
+///A0 VSS
+//A1VSS
+//A2VSS
+//1. EEPROM 1010 000 HEX=50 =EPROOM ADRESS A1=0 , A2=0, A3=0
+//2. EEPROM 1010 111 HEX=50 =EPROOM ADRESS 0x57 ADRE A1=1, A2=1, A3=1
+void read_I2C(uint8_t devAddr, uint8_t* data, int size){
+//read data
+I2C1->CR2 = 0;
+I2C1->CR2 |= (uint32_t)(devAddr << 1);
+I2C1->CR2 |= (1U << 10); //Read mode
+I2C1->CR2 |= (uint32_t)(size << 16); //Number of bytes
+I2C1->CR2 |= (1U << 25); //AUTOEND
+I2C1->CR2 |= (1U << 13); //Generate start
+while(size){
+while(!(I2C1->ISR & (1 << 2)));
+(*data++) = (uint8_t)I2C1->RXDR;
+size--; }
+}
+void write_memory_I2C(uint8_t devAddr, uint16_t memAddr,uint8_t* data, int size){
+//Send address and register to WRITE
+I2C1->CR2 = 0;
+I2C1->CR2 |= (uint32_t)(devAddr << 1);
+I2C1->CR2 |= (uint32_t)((size + 2)<< 16);
+I2C1->CR2 |= (1U << 25); //Autoend
+I2C1->CR2 |= (1U << 13); //Generate start
+while(!(I2C1->ISR & (1 << 1))); //high address
+I2C1->TXDR = (uint32_t)(memAddr >> 8);
+while(!(I2C1->ISR & (1 << 1))); //low address
+I2C1->TXDR = (uint32_t)(memAddr & 0xFF);
+while(size){
+while(!(I2C1->ISR & (1 << 1))); //is flag busy
+I2C1->TXDR = (*data++); //send data
+size--;
+}
+}
+void random_read_I2C(uint8_t devAddr,uint16_t memAddr,uint8_t* data, int size){
+//Send address and register to read
+I2C1->CR2 = 0;
+I2C1->CR2 |= (uint32_t)(devAddr << 1);
+I2C1->CR2 |= (2U << 16); //Number of bytes
+I2C1->CR2 |= (1U << 13); //Generate Start
+while(!(I2C1->ISR & (1 << 1)));
+I2C1->TXDR = (uint32_t)(memAddr >> 8);
+while(!(I2C1->ISR & (1 << 1)));
+I2C1->TXDR = (uint32_t)(memAddr & 0xFF);
+while(!(I2C1->ISR & (1 << 6))); //is transmission complete
+//read data
+I2C1->CR2 = 0;
+I2C1->CR2 |= (uint32_t)(devAddr << 1);
+I2C1->CR2 |= (1U << 10); //Read mode
+I2C1->CR2 |= (uint32_t)(size << 16); //Number of bytes
+I2C1->CR2 |= (1U << 25); //AUTOEND
+I2C1->CR2 |= (1U << 13); //Generate start
+while(size){
+while(!(I2C1->ISR & (1 << 2)));
+(*data++) = (uint8_t)I2C1->RXDR;
+size--;
+}
+}
+C. MAIN.C
+#include "stm32g0xx.h"
+#include "bsp.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#define e2prom-adress1 0x50
+#define e2prom-adress2 0x57
+uint8_t voice;
+uint8_t buf[32];
+float ans = 64;
+int i;
+void TIM3_IRQHandler(void) { //pwm
+TIM3->ARR |= (uint32_t)ans;
+TIM3->CCR1 = buf[i];
+++i;
+TIM3->SR &= ~(1U << 0); //Update Status Register
+}
+void EXTI0_1_IRQHandler(void){
+//Interrupt comes from PB0->C3
+clearRowsKeypad();
+GPIOA->ODR |= (1U << 8); //PA8->R1
+if ((GPIOB->IDR >> 0) & 1){
+i = 0;
+}
+GPIOA->ODR ^= (1U << 8); //PA8->R1
+//////////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5 - R2
+if ((GPIOB->IDR >> 0) & 1){
+i = 1;
+}
+GPIOB->ODR ^= (1U << 5); //PB5
+////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB9 - R3
+if ((GPIOB->IDR >> 0) & 1){
+i = 2;
+}
+GPIOB->ODR ^= (1U << 5); //PB9 - R3
+EXTI->RPR1 |= (1U << 0); //Clear interrupt flag
+setRowsKeypad();
+}
+void EXTI2_3_IRQHandler(void){
+//Interrupt comes from PB2->C2
+clearRowsKeypad();
+GPIOA->ODR ^= (1U << 10); //PA10->R3
+GPIOA->ODR |= (1U << 8); //PA8->R1
+if ((GPIOB->IDR >> 0) & 1){
+i = 3;
+}
+GPIOA->ODR ^= (1U << 8); //PA8->R1
+//////////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5 - R2
+if ((GPIOB->IDR >> 0) & 1){
+i = 4;
+}
+GPIOB->ODR ^= (1U << 5); //PB5
+////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB9 - R3
+if ((GPIOB->IDR >> 0) & 1){
+i = 5;
+}
+GPIOB->ODR ^= (1U << 5); //PB9 - R3
+EXTI->RPR1 |= (1U << 2); //Clear interrupt flag
+setRowsKeypad();
+}
+void EXTI4_15_IRQHandler(void){
+//Interrupt comes from PB8->C1 clearRowsKeypad();
+GPIOA->ODR ^= (1U << 10); //PA10->R3
+GPIOA->ODR |= (1U << 8); //PA8->R1
+if ((GPIOB->IDR >> 0) & 1){
+i = 6;
+}
+GPIOA->ODR ^= (1U << 8); //PA8->R1
+//////////////////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB5 - R2
+if ((GPIOB->IDR >> 0) & 1){
+i = 7;
+}
+GPIOB->ODR ^= (1U << 5); //PB5
+////////////////////////////
+GPIOB->ODR ^= (1U << 5); //PB9 - R3
+if ((GPIOB->IDR >> 0) & 1){
+i = 8;
+}
+GPIOB->ODR ^= (1U << 5); //PB9 - R3
+EXTI->RPR1 |= (1U << 9); //Clear interrupt flag
+setRowsKeypad();
+}
+uint16_t startADC(void){
+while(!(ADC1->ISR & (1U << 2))); // Wait the data
+delay_ms(1000);
+return ADC1->DR;
+}
+void ADC_COMP_IRQHandler(void){
+while (i != 32) { //32 bayt
+voice = (uint8_t) (ADC1->DR); //8 bitlik
+buf[i] = voice % 256;
+voice = 0;
+i++;
+}
+i = 0;
+ADC1->ISR &= (1U << 2);
+}
+int main(void) {
+initTIM3();
+pwm();
+pins();
+adc();
+initTIM2();
+I2C();
+conversion();
+while(1)
+{
+}
+return 0;
+}
